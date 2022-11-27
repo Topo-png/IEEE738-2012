@@ -13,8 +13,8 @@ import time
 ver = 'v0.1.0'
 debug = False
 
-dir_config = '' # location of configuration file
-dir_conductor = '' # location of conductor file
+dir_config = 'config-sample.xlsx' # location of configuration file
+dir_conductor = 'Conductor_Prop-Sample.xlsx' # location of conductor file
 
 degree_sign = u'\N{DEGREE SIGN}'
 
