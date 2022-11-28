@@ -132,10 +132,12 @@ class IEEE738:
         config_selection = self.select_config(config_list)
         conductor_selection = self.select_conductor(conductor_list, conductor_spec)
         df = self.add_calculated_values(config_selection, conductor_selection)
-        n, e, load = self.c_reporting(df, 0)
+        n, e, load, df_out = self.c_reporting(df, 0)
         print(f'Normal ratings {n}')
         print(f'Emergency ratings {e}')
         print(f'load dumping ratings {load}')
+        excel_sheets = ('Normal', 'Emergency', 'Load Dump', 'Results')
+        self.toExcel(n, e, load, df_out, excel_sheets)
         t1 = time.time()
         t = t1 - t0
         print(f'time to compute {t} seconds')
@@ -946,15 +948,16 @@ class IEEE738:
         df_emergency.index.name = 'Conductor Temperature'
         df_load.index.name = 'Conductor Temperature'
 
-        return df_normal, df_emergency, df_load
+        return df_normal, df_emergency, df_load, df
 
-    def toExcel(self, df):
+    def toExcel(self, df_n, df_e, df_l, df_otuput, sheetnames):
         # todo add some note to the DF that shows which calculation it is day/night normal/emergency/load dump
-
-        # df_conductor_range = df.drop_duplicates(['adjusted normal temperature rating'])
-        # df_ambient_range = df.drop_duplicates(['ambient air temperature'])
-
-        return 0
+        with pd.ExcelWriter("test.xlsx") as writer:
+            df_n.to_excel(writer, sheet_name=sheetnames[0])
+            df_e.to_excel(writer, sheet_name=sheetnames[1])
+            df_l.to_excel(writer, sheet_name=sheetnames[2])
+            df_otuput.to_excel(writer, sheet_name=sheetnames[3])
+        return None
 
     # Functions
     @staticmethod
