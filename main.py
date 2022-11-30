@@ -869,7 +869,7 @@ class IEEE738:
         _tau = 15
         _time = _tau * 60
 
-        load_dump = self.test(_threshold, _calculation_units, _diameter, _conductor_temp_normal_adjusted, _conductor_temp_emergency_adjusted, conductor_temperature_adjusted,
+        load_dump = self.load_dump(_threshold, _calculation_units, _diameter, _conductor_temp_normal_adjusted, _conductor_temp_emergency_adjusted, conductor_temperature_adjusted,
                               _ambient_air_temp_adjusted,
                               _elevation,
                               _wind_angle, _conductor_wind_emergency_adjusted, _emissivity, _solar_absorptivity,
@@ -1357,7 +1357,7 @@ class IEEE738:
         # todo add something here to change wind speed from 0 to none zero but greater than emergency wind speed rating
 
         lower_t = _ambient_air_temp  # conductor cannot be lower than ambient unless actively cooled
-        upper_t = 300  # todo add in some check that this is high enough???
+        upper_t = 600  # todo add in some check that this is high enough???
         solve_t = (lower_t + upper_t) / 2
         threshold = _ii - self.c_SSRating(_units, _diameter, solve_t, _ambient_air_temp, _elevation, _wind_angle, _Vw,
                                           _emissivity, _solar_absorptivity, _atmosphere, _latitude, _day, _month,
@@ -1390,7 +1390,7 @@ class IEEE738:
                 input(f'Iteration #: {_int} Press Enter to continue...')
 
         if _max:
-            # todo make mention somewhere that the solver was unable to converge
+            print('Unable to converge')
             print(f'Final result: Threshold: {threshold}....Solved input: {solve_t}....Number of Iterations {_int}')
             _results = solve_t
         else:
@@ -1410,12 +1410,10 @@ class IEEE738:
         results = _initial_temperature + (_final_temperature - _initial_temperature) * (1 - np.exp(-_time / _calc_tau))
         return results
 
-    def test(self, _threshold, _calculation_units, _diameter, _conductor_temp_normal, _conductor_temp_emergency, _conductor_temp, _ambient_air_temp, _elevation,
+    def load_dump(self, _threshold, _calculation_units, _diameter, _conductor_temp_normal, _conductor_temp_emergency, _conductor_temp, _ambient_air_temp, _elevation,
              _wind_angle, _conductor_wind_emergency_adjusted,
              _emissivity, _solar_absorptivity, _atmosphere, _latitude, _day, _month, _year, _hour,
              _conductor_direction, _APrime, _conductor_resistance, _tau, _mcp):
-
-        holder = None
 
         # todo make sure all winds are correct.
         # Initial current, no wind
@@ -1462,12 +1460,13 @@ class IEEE738:
         _tc = self.temp_conductor(_initial_temperature, _final_temperature, 15, _calc_tau)
 
         lower_t = _initial_temperature
-        # upper_t = _conductor_temp_emergency * 2
-        upper_t = 250  # todo pass either highest temperature value from conductor spec table or
-        # multiple 2x emergency temp
+        upper_t = _conductor_temp_emergency * 3
         solve_t = (lower_t + upper_t) / 2
 
         threshold = _conductor_temp_emergency - _tc
+        if debug:
+            print(f'Threshold: {threshold}')
+
         while np.abs(threshold) >= np.abs(_threshold) and not _max:
             if debug:
                 print(f'range is: {lower_t}  ----  {solve_t}   ----   {upper_t}')
@@ -1490,64 +1489,24 @@ class IEEE738:
                     _r * (_final_current ** 2 - _initial_current ** 2)) / 60
             tc = self.temp_conductor(_initial_temperature, solve_t, 15, _calc_tau)
             threshold = _conductor_temp_emergency - tc
-        results = _final_current
+            _int += 1
+            if _int >= _max_iterations:
+                _max = True
+            if debug:
+                print(f'Final Current: {_final_current}, solve_t: {solve_t}, calc_tau: {_calc_tau}, tc: {_tc}, threshold: {threshold}')
+                input(f'Iteration #: {_int} Press Enter to continue...')
 
-        # todo remove everything below if above works properly.....
-        # lower_t = _initial_temperature
-        # # upper_t = _conductor_temp_emergency * 2
-        # upper_t = 250  # todo pass either highest temperature value from conductor spec table or
-        # # multiple 2x emergency temp
-        # solve_t = (lower_t + upper_t) / 2
-        # threshold = _conductor_temp_emergency - _tc #todo fix this
-        #
-        # if debug:
-        #     print(f'Threshold: {threshold}')
-        #
-        # while np.abs(threshold) >= np.abs(_threshold) and not _max:
-        #     if debug:
-        #         print(f'range is: {lower_t}  ----  {solve_t}   ----   {upper_t}')
-        #     if threshold < 0:
-        #         upper_t = solve_t
-        #         solve_t = (lower_t + upper_t) / 2
-        #         if debug:
-        #             print(f'< {solve_t}')
-        #     elif threshold > 0:
-        #         lower_t = solve_t
-        #         solve_t = (lower_t + upper_t) / 2
-        #         if debug:
-        #             print(f'> {solve_t}')
-        #
-        #     holder = self.c_SSRating(_calculation_units, _diameter, solve_t, _ambient_air_temp, _elevation, _wind_angle,
-        #                              _conductor_wind_emergency_adjusted,
-        #                              _emissivity, _solar_absorptivity, _atmosphere, _latitude, _day, _month, _year,
-        #                              _hour, _conductor_direction, _APrime, _conductor_resistance)
-        #
-        #     # _r = self.c_cond_resistance(solve_t, _conductor_resistance)
-        #     # todo a few options here, calculate R based on Ti and leave fixed, provides similar number to excel
-        #     #  sheet, calculate based on conductor maximum temperature, calculate each time based on iterative
-        #     #  approach, calculate based on average (from standard)
-        #     _calc_tau = (_mcp * (solve_t - _initial_temperature)) / (
-        #             _r * (holder ** 2 - _initial_current ** 2)) / 60
-        #     _tc = _initial_temperature + (_conductor_temp_emergency - _initial_temperature) * (1 - np.exp(-15 / _calc_tau))
-        #     threshold = _conductor_temp_emergency - _tc #todo fix this
-        #     if debug:
-        #         print(f'holder: {holder}, solve_t: {solve_t}, calc_tau: {_calc_tau}, tc: {_tc}, threshold: {threshold}')
-        #     _int += 1
-        #     if _int >= _max_iterations:
-        #         _max = True
-        #     if debug:
-        #         print(f'Holder: {holder} Threshold: {threshold}, Calc Tau: {_calc_tau}, R: {_r}')
-        #         input(f'Iteration #: {_int} Press Enter to continue...')
-        # if debug:
-        #     # todo make mention somewhere that the solver was unable to converge
-        #     print(f'Final result: Threshold: {threshold}....Solved input: {solve_t}....Number of Iterations {_int}')
-        #     _results = holder
-        # else:
-        #     _results = holder
-        # if debug:
-        #     print(f'Max iterations: {_int}, Final result: Threshold: {threshold}....Solved input: {solve_t}')
-        #     print(f'Conductor Temp: {_results}, tau: {_calc_tau}')
-        return results
+        if _max:
+            print('Unable to converge')
+            print(f'Final result: Threshold: {threshold}....Solved input: {solve_t}....Number of Iterations {_int}')
+            _results = _final_current
+        else:
+            _results = _final_current
+        if debug:
+            print(f'Max iterations: {_int}, Final Current: {_final_current}, Threshold: {threshold}, Solved input: {solve_t}')
+            print(f'Conductor Temp: {_results}, tau: {_calc_tau}')
+
+        return _results
 
 
 if __name__ == "__main__":
