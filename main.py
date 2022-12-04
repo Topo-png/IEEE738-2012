@@ -290,12 +290,14 @@ class IEEE738:
             _df = _df[_df['Cond Strand'] == _conductor_stranding]
             if not _df.shape[0] == 1:
                 _df = _df.drop_duplicates(['Core Strand'])
+                _df.sort_values('Core Strand', ascending=True, inplace=True)
                 _df = _df['Core Strand'].values
                 for _pos, _text in enumerate(_df):
                     print(f"{_pos + 1}: {_text}")
                 _response = int(input("Selection?"))
+                print(_df[0])
                 _conductor_core_stranding = _df[_response - 1]
-                _df = _df[_df['Core Strand'] == _conductor_core_stranding]
+                # _df = _df[_df['Core Strand'] == _conductor_core_stranding]
 
         _df = df_conductor_list  # Reset list to original excel import, could probably do this neater, but it works
 
@@ -307,7 +309,7 @@ class IEEE738:
                 conductor_data = _df.loc[
                     (_df['Conductor Spec'] == _conductor_spec) & (_df['Size'] == _conductor_size) & (
                             _df['Cond Strand'] == _conductor_stranding)]
-        elif _conductor_stranding is None:
+        else:
             conductor_data = _df.loc[
                 (_df['Conductor Spec'] == _conductor_spec) & (_df['Size'] == _conductor_size) & (
                         _df['Cond Strand'] == _conductor_stranding) & (_df['Core Strand'] == _conductor_core_stranding)]
@@ -490,15 +492,6 @@ class IEEE738:
         mil_2_ft = 1 / 12000
         in_2_ft = 1 / 12
         mile_2_ft = 5280
-
-        # length_lookup_value_mm = 0
-        # length_lookup_value_cm = 1
-        # length_lookup_value_dm = 2
-        # length_lookup_value_m = 3
-        # length_lookup_value_mil = 4
-        # length_lookup_value_inch = 5
-        # length_lookup_value_foot = 6
-        # length_lookup_value_mile = 7
 
         try:
             if self.units_lookup[unit_type] == self.metric_value:  # metric report
