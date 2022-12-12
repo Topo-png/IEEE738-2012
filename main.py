@@ -639,7 +639,6 @@ class IEEE738:
 
         for i, element_i in enumerate(temp_range_ambient):
             for j, element_j in enumerate(temp_range_conductor):
-                # df = pd.concat([df, df.iloc[[0]]], axis=0, ignore_index=True)
                 df_N = pd.concat([df_N, df_N.iloc[[0]]], axis=0, ignore_index=True)
                 df_E = pd.concat([df_E, df_E.iloc[[0]]], axis=0, ignore_index=True)
                 df_L = pd.concat([df_L, df_L.iloc[[0]]], axis=0, ignore_index=True)
