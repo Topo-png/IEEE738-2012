@@ -35,6 +35,7 @@ import UnitConversion as unc
 from openpyxl.styles import colors
 from openpyxl.styles import Font, Color
 from openpyxl import Workbook
+from openpyxl.utils.dataframe import dataframe_to_rows
 from openpyxl.styles import Alignment, Font, Color, colors
 from openpyxl.cell.text import InlineFont
 
@@ -46,8 +47,8 @@ from openpyxl.cell.text import InlineFont
 
 uc = unc.UnitConvert()
 
-ver = 'v0.1.8'
-debug = True
+ver = 'v0.2.0'
+debug = True  # disable to allow selection of config/conductors
 
 dir_config = 'Sample/config-sample.xlsx'  # location of configuration file
 dir_conductor = 'Sample/Conductor_Prop-Sample.xlsx'  # location of conductor file
@@ -61,6 +62,7 @@ class IEEE738:
         self.true_to_standard = False
         self.metric_value = 0
         self.imperial_value = 1
+        self.conductor_temp_steps = 6
 
         self.units_lookup = {
             'metric': self.metric_value,
@@ -201,8 +203,7 @@ class IEEE738:
         print(df_emergency_night)
         print(df_load_day)
         print(df_load_night)
-        # excel_sheets = ('Normal Day', 'Normal Night', 'Emergency Day', 'Emergency Night', 'Load Dump', 'Results')
-        # self.toExcel(df_normal, df_emergency, df_load, excel_sheets)
+        self.export_excel(df_normal, df_emergency, df_load, df_config, 'export_test')
         t1 = time.time()
         t = t1 - t0
         print(f'time to compute {t} seconds')
@@ -616,8 +617,7 @@ class IEEE738:
 
         return load_dump_day, load_dump_night
 
-    @staticmethod
-    def c_temperature_range(df_adjusted):
+    def c_temperature_range(self, df_adjusted):
         # TODO add check to verify design summer/winter are captured within ambient temperature range
         #  if not, adjust range to include
         ambient_lower_range = df_adjusted.at[0, 'ambient air temperature lower range']
@@ -625,16 +625,16 @@ class IEEE738:
         ambient_temp_inc = df_adjusted.at[0, 'temperature increment']
         conductor_normal_rating = df_adjusted.at[0, 'normal temperature rating']
         conductor_emergency_rating = df_adjusted.at[0, 'emergency temperature rating']
-        conductor_temp_steps = 6
+        # conductor_temp_steps = 6
         # TODO adjust conductor ranges to include steps above and below maximums
         # TODO adjust ambient ranges to include steps above and below maximums
 
         if conductor_normal_rating == conductor_emergency_rating:
-            temp_range_conductor = np.arange(conductor_normal_rating - conductor_temp_steps * ambient_temp_inc,
-                                             conductor_normal_rating + (1 + conductor_temp_steps) * ambient_temp_inc, ambient_temp_inc)
+            temp_range_conductor = np.arange(conductor_normal_rating - self.conductor_temp_steps * ambient_temp_inc,
+                                             conductor_normal_rating + (1 + self.conductor_temp_steps) * ambient_temp_inc, ambient_temp_inc)
         else:
-            temp_range_conductor = np.arange(conductor_normal_rating - conductor_temp_steps * ambient_temp_inc,
-                                             conductor_emergency_rating + (1 + conductor_temp_steps) * ambient_temp_inc, ambient_temp_inc)
+            temp_range_conductor = np.arange(conductor_normal_rating - self.conductor_temp_steps * ambient_temp_inc,
+                                             conductor_emergency_rating + (1 + self.conductor_temp_steps) * ambient_temp_inc, ambient_temp_inc)
 
         temp_range_ambient = np.arange(ambient_lower_range, ambient_upper_range + ambient_temp_inc, ambient_temp_inc)
 
@@ -678,11 +678,41 @@ class IEEE738:
         # TODO add polynomial regression to replace nan with none zero.
         #  ex HD Copper 500 @ Tc = 55C & Amb = 40C I = nan
         #  mention this or highlight cell somehow
+
+        # remove first row (configuration setup) --> likely a better way to make this work
+        df_N = df_N.drop(labels=0, axis='index').reset_index(drop=True)
+        df_E = df_E.drop(labels=0, axis='index').reset_index(drop=True)
+        df_L = df_L.drop(labels=0, axis='index').reset_index(drop=True)
+
+        # remove nan and replace with 0
         df_N = df_N.replace(np.nan, 0)
         df_E = df_E.replace(np.nan, 0)
         df_L = df_L.replace(np.nan, 0)
 
         return df_N, df_E, df_L
+
+    def export_excel(self, df_n, df_e, df_l, df_config, filename_):
+        wb = Workbook()
+        ws = wb.active
+        filename_ = filename_ + '.xlsx'
+        ws.title = 'normal'
+        for r in dataframe_to_rows(df_n, index=False, header=True):
+            ws.append(r)
+
+        ws = wb.create_sheet('emergency')
+        for r in dataframe_to_rows(df_e, index=False, header=True):
+            ws.append(r)
+
+        ws = wb.create_sheet('load')
+        for r in dataframe_to_rows(df_l, index=False, header=True):
+            ws.append(r)
+
+        ws = wb.create_sheet('config')
+        for r in dataframe_to_rows(df_config, index=False, header=True):
+            ws.append(r)
+
+        wb.save(filename_)
+
 
     @staticmethod
     def current_steady_state(qr, qs, qc, r):
@@ -694,7 +724,10 @@ class IEEE738:
         :param r: Conductor resistance (ohms)
         :return: Steady state current rating (Amps)
         """
-        rating = np.sqrt((qr - qs + qc) / r)
+        if (qr - qs + qc) > 0:
+            rating = np.sqrt((qr - qs + qc) / r)
+        else:
+            rating = 0
         return rating
 
     def c_uf(self, calculation_units, conductor_temp, ambient_air_temp, df=None, _idx=0):
