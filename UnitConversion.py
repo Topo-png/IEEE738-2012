@@ -24,6 +24,7 @@ SOFTWARE.
 """
 
 degree_sign = u'\N{DEGREE SIGN}'
+import numpy as np
 
 
 class UnitConvert:
@@ -335,6 +336,31 @@ class UnitConvert:
             'knots': self.speed_lookup_value_knots,
         }
 
+        self.angle_lookup_value_deg = 0  # degrees
+        self.angle_lookup_value_rad = 1  # radians
+
+        self.dict_angle_convert = {
+            self.angle_lookup_value_deg: {
+                self.angle_lookup_value_deg: 1,
+                self.angle_lookup_value_rad: np.pi / 180
+            },
+            self.angle_lookup_value_rad: {
+                self.angle_lookup_value_deg: 180 / np.pi,
+                self.angle_lookup_value_rad: 1
+            }
+        }
+        self.dict_angle = {
+            'deg': self.angle_lookup_value_deg,
+            'degs': self.angle_lookup_value_deg,
+            'degree': self.angle_lookup_value_deg,
+            'degrees': self.angle_lookup_value_deg,
+
+            'rad': self.angle_lookup_value_rad,
+            'rads': self.angle_lookup_value_rad,
+            'radian': self.angle_lookup_value_rad,
+            'radians': self.angle_lookup_value_rad,
+        }
+
     def temp_convert(self, value, input_units, output_units):
         """
         Converts temperature from input units to output units
@@ -344,9 +370,10 @@ class UnitConvert:
         :return: converted temperature
         """
         try:
+            # TODO this handle tuples and cycle through all items
+            # if not isinstance(value, tuple):
             conversion = self.dict_temp_convert[self.dict_temp[input_units]][self.dict_temp[output_units]]
             output = (value + conversion[0]) * conversion[1] + conversion[2]
-
         except KeyError:
             return "error"
         return output
@@ -381,6 +408,21 @@ class UnitConvert:
             return "error"
         return output
 
+    def angle_convert(self, value, input_units, output_units):
+        """
+        Converts length from input units to output units
+        :param value: value to be converted
+        :param input_units: input units
+        :param output_units: output units
+        :return: converted distance
+        """
+        try:
+            conversion = self.dict_angle_convert[self.dict_angle[input_units]][self.dict_angle[output_units]]
+            output = (value * conversion)
+        except KeyError:
+            return "error"
+        return output
+
     @staticmethod
     def temp_test(val):
         print('Test calc, C/F/K/R')
@@ -405,9 +447,16 @@ class UnitConvert:
             for y in list_:
                 _val = app.speed_convert(val, x, y)
                 print(f'{val} {x} converted to {y}: {_val}')
+    @staticmethod
+    def angle_test(val):
+        list_ = {'deg', 'rad'}
+        for x in list_:
+            for y in list_:
+                _val = app.angle_convert(val, x, y)
+                print(f'{val} {x} converted to {y}: {_val}')
 
 
 if __name__ == "__main__":
     app = UnitConvert()
-    app.speed_test(10)
+    app.angle_test(10)
     # app.length_test(10)
