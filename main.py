@@ -2,7 +2,7 @@
 """
 MIT License
 
-Copyright (c) 2022 Topo-png
+Copyright (c) 2023 Mark Shuck
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -22,7 +22,8 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-@author: shuck
+@author: Mark Shuck
+email: mark@shuck.engineering
 """
 
 import numpy as np
@@ -31,24 +32,16 @@ import datetime
 import time
 import scipy.optimize as optimize
 
-import UnitConversion as unc
-from openpyxl.styles import colors
-from openpyxl.styles import Font, Color
+import UnitConversion as Unc
 from openpyxl import Workbook
 from openpyxl.utils.dataframe import dataframe_to_rows
-from openpyxl.styles import Alignment, Font, Color, colors
-from openpyxl.cell.text import InlineFont
 
-# from openpyxl.cell.rich_text import TextBlock, CellRichText
-# from openpyxl.cell.rich_text import TextBlock, CellRichTextStr
-
-# from openpyxl.cell.rich_text import TextBlock, CellRichText
 # todo clean up naming conventions
 
-uc = unc.UnitConvert()
+uc = Unc.UnitConvert()
 
-ver = 'v0.2.0'
-debug = True  # disable to allow selection of config/conductors
+ver = 'v0.2.5'
+demo = True  # disable to allow selection of config/conductors
 
 dir_config = 'Sample/config-sample.xlsx'  # location of configuration file
 dir_conductor = 'Sample/Conductor_Prop-Sample.xlsx'  # location of conductor file
@@ -60,114 +53,9 @@ class IEEE738:
 
     def __init__(self):
         self.true_to_standard = False
-        self.metric_value = 0
-        self.imperial_value = 1
+        self.true_to_spreadsheet = False  # TODO implement this feature. spreadsheet calculates resistances slightly
+        # different compared to the standard
         self.conductor_temp_steps = 6
-
-        self.units_lookup = {
-            'metric': self.metric_value,
-            'Metric': self.metric_value,
-            'M': self.metric_value,
-            'm': self.metric_value,
-            'Imperial': self.imperial_value,
-            'imperial': self.imperial_value,
-            'I': self.imperial_value,
-            'i': self.imperial_value
-        }
-
-        self.units_output = {
-            self.metric_value: 'm',
-            self.imperial_value: 'ft'
-        }
-
-        self.wind_units_output = {
-            self.metric_value: 'm/s',
-            self.imperial_value: 'ft/hr'
-        }
-
-        self.units_output_temp = {
-            self.metric_value: degree_sign + 'C',
-            self.imperial_value: degree_sign + 'C'
-        }
-
-        self.temp_lookup_value_C = 0
-        self.temp_lookup_value_F = 1
-        self.temp_lookup_value_K = 2
-        self.temp_lookup_value_R = 3
-
-        self.temperature_lookup = {
-            'c': self.temp_lookup_value_C,
-            'C': self.temp_lookup_value_C,
-            degree_sign + 'c': self.temp_lookup_value_C,
-            degree_sign + 'C': self.temp_lookup_value_C,
-            'celsius': self.temp_lookup_value_C,
-            'Celsius': self.temp_lookup_value_C,
-
-            'f': self.temp_lookup_value_F,
-            'F': self.temp_lookup_value_F,
-            degree_sign + 'f': self.temp_lookup_value_F,
-            degree_sign + 'F': self.temp_lookup_value_F,
-            'fahrenheit': self.temp_lookup_value_F,
-            'Fahrenheit': self.temp_lookup_value_F,
-
-            'k': self.temp_lookup_value_K,
-            'K': self.temp_lookup_value_K,
-            degree_sign + 'k': self.temp_lookup_value_K,
-            degree_sign + 'K': self.temp_lookup_value_K,
-            'kelvin': self.temp_lookup_value_K,
-            'Kelvin': self.temp_lookup_value_K,
-
-            'r': self.temp_lookup_value_R,
-            'R': self.temp_lookup_value_R,
-            degree_sign + 'r': self.temp_lookup_value_R,
-            degree_sign + 'R': self.temp_lookup_value_R,
-            'rankine': self.temp_lookup_value_R,
-            'Rankine': self.temp_lookup_value_R,
-        }
-
-        self.length_lookup_value_mm = 0
-        self.length_lookup_value_cm = 1
-        self.length_lookup_value_dm = 2
-        self.length_lookup_value_m = 3
-        self.length_lookup_value_mil = 4
-        self.length_lookup_value_inch = 5
-        self.length_lookup_value_foot = 6
-        self.length_lookup_value_mile = 7
-
-        self.length_lookup = {
-            'mm': self.length_lookup_value_mm,
-            'milli': self.length_lookup_value_mm,
-            'millimeter': self.length_lookup_value_mm,
-            'millimeters': self.length_lookup_value_mm,
-
-            'cm': self.length_lookup_value_cm,
-            'centi': self.length_lookup_value_cm,
-            'centimeter': self.length_lookup_value_cm,
-            'centimeters': self.length_lookup_value_cm,
-
-            'dm': self.length_lookup_value_dm,
-            'deci': self.length_lookup_value_dm,
-            'decimeter': self.length_lookup_value_dm,
-            'decimeters': self.length_lookup_value_dm,
-
-            'm': self.length_lookup_value_m,
-            'meter': self.length_lookup_value_m,
-            'meters': self.length_lookup_value_m,
-
-            'mil': self.length_lookup_value_mil,
-            'mils': self.length_lookup_value_mil,
-            'thou': self.length_lookup_value_mil,
-            'thousand': self.length_lookup_value_mil,
-
-            'in': self.length_lookup_value_inch,
-            'inch': self.length_lookup_value_inch,
-            'inches': self.length_lookup_value_inch,
-
-            'ft': self.length_lookup_value_foot,
-            'foot': self.length_lookup_value_foot,
-            'feet': self.length_lookup_value_foot
-
-        }
 
     def runTest(self):
 
@@ -182,21 +70,19 @@ class IEEE738:
         df = self.add_calc_columns(df_adjusted)
         df_normal, df_emergency, df_load = self.c_reporting(df)
 
-        df_hold = df_normal.loc[1:, :]
-        df_normal_day = df_hold.pivot(index='conductor temperature', columns='ambient air temperature',
-                                      values='rating daytime')
-        df_normal_night = df_hold.pivot(index='conductor temperature', columns='ambient air temperature',
-                                        values='rating nighttime')
-        df_hold = df_emergency.loc[1:, :]
-        df_emergency_day = df_hold.pivot(index='conductor temperature', columns='ambient air temperature',
-                                         values='rating daytime')
-        df_emergency_night = df_hold.pivot(index='conductor temperature', columns='ambient air temperature',
-                                           values='rating nighttime')
-        df_hold = df_load.loc[1:, :]
-        df_load_day = df_hold.pivot(index='conductor temperature', columns='ambient air temperature',
+        df_normal_day = df_normal.pivot(index='conductor temperature', columns='ambient air temperature',
+                                        values='rating daytime')
+        df_normal_night = df_normal.pivot(index='conductor temperature', columns='ambient air temperature',
+                                          values='rating nighttime')
+        df_emergency_day = df_emergency.pivot(index='conductor temperature', columns='ambient air temperature',
+                                              values='rating daytime')
+        df_emergency_night = df_emergency.pivot(index='conductor temperature', columns='ambient air temperature',
+                                                values='rating nighttime')
+        df_load_day = df_load.pivot(index='conductor temperature', columns='ambient air temperature',
                                     values='load dump rating daytime')
-        df_load_night = df_hold.pivot(index='conductor temperature', columns='ambient air temperature',
+        df_load_night = df_load.pivot(index='conductor temperature', columns='ambient air temperature',
                                       values='load dump rating nighttime')
+
         print(df_normal_day)
         print(df_normal_night)
         print(df_emergency_day)
@@ -214,7 +100,6 @@ class IEEE738:
         # Imports list of configurations from database
         # Returns list of configurations
         config_list = pd.read_excel(io=dir_, sheet_name='config', engine='openpyxl')
-        # config_list = pd.read_excel(df, sheet_name='config')
         return config_list
 
     @staticmethod
@@ -253,7 +138,7 @@ class IEEE738:
             print('Select Configuration')
             for _pos, _text in enumerate(_df):
                 print(f"{_pos + 1}: {_text}")
-                if debug:
+                if demo:
                     _response = 1
                 else:
                     _response = int(input("Selection? "))
@@ -287,7 +172,7 @@ class IEEE738:
         _df = _df['Conductor Spec'].values
         for _pos, _text in enumerate(_df):
             print(f"{_pos + 1}: {_text}")
-            if debug:
+            if demo:
                 _response = 2
             else:
                 _response = int(input("Selection? "))
@@ -299,8 +184,7 @@ class IEEE738:
         _df = _df['Size'].values
         for _pos, _text in enumerate(_df):
             print(f"{_pos + 1}: {_text}")
-        # _response = int(input("Selection?"))
-        if debug:
+        if demo:
             _response = 1
         else:
             _response = int(input("Selection? "))
@@ -319,7 +203,7 @@ class IEEE738:
             _df = _df['Cond Strand'].values
             for _pos, _text in enumerate(_df):
                 print(f"{_pos + 1}: {_text}")
-            if debug:
+            if demo:
                 _response = 4
             else:
                 _response = int(input("Selection? "))
@@ -368,7 +252,7 @@ class IEEE738:
         return df
 
     def unit_conversion(self, df_conductor, df_spec, df_config):
-        # Todo remove angle adjustment and use UnitConversion.py
+
         unit_selection = None
 
         df_conductor_wind_list = pd.DataFrame()
@@ -384,9 +268,9 @@ class IEEE738:
 
         calculation_units = df_config.at[0, 'calculation units']
 
-        if self.units_lookup[calculation_units] == self.metric_value:
+        if uc.units_lookup[calculation_units] == uc.metric_value:
             unit_selection = 2
-        elif self.units_lookup[calculation_units] == self.imperial_value:
+        elif uc.units_lookup[calculation_units] == uc.imperial_value:
             unit_selection = 3
 
         conductor_wind_list = (
@@ -510,9 +394,9 @@ class IEEE738:
         # Conductor setup
         diameter = df.at[_idx, 'Metal OD']
 
-        if self.units_lookup[calculation_units] == self.metric_value:
+        if uc.units_lookup[calculation_units] == uc.metric_value:
             conductor_projection = diameter / 1000
-        elif self.units_lookup[calculation_units] == self.imperial_value:
+        elif uc.units_lookup[calculation_units] == uc.imperial_value:
             conductor_projection = diameter / 12
 
         d = {'high resistance Ω/unit': [df.at[0, 'high resistance Ω/unit']],  # high resistance
@@ -549,7 +433,6 @@ class IEEE738:
         # Configuration setup
         conductor_projection = None
         calculation_units = df.at[_idx, 'calculation units']
-        threshold = df.at[_idx, 'threshold']
         elevation = df.at[_idx, 'elevation']
         emissivity = df.at[_idx, 'emissivity']
         solar_absorptivity = df.at[_idx, 'solar absorptivity']
@@ -560,21 +443,20 @@ class IEEE738:
         year = df.at[_idx, 'year']
         hour = df.at[_idx, 'hour']
         conductor_direction = df.at[_idx, 'conductor direction']
-        #
-        conductor_spec = df.at[_idx, 'Conductor Spec']
+
+        # conductor_spec = df.at[_idx, 'Conductor Spec'] # todo is this needed anymore?
         ambient_air_temp = df.at[_idx, 'ambient air temperature']
 
         conductor_temp_normal = df.at[_idx, 'normal temperature rating']
         conductor_temp_emergency = df.at[_idx, 'emergency temperature rating']
         conductor_wind_emergency = df.at[_idx, 'emergency wind speed']
-        conductor_temperature = df.at[_idx, 'conductor temperature']
 
         # Conductor setup
         diameter = df.at[_idx, 'Metal OD']
 
-        if self.units_lookup[calculation_units] == self.metric_value:
+        if uc.units_lookup[calculation_units] == uc.metric_value:
             conductor_projection = diameter / 1000
-        elif self.units_lookup[calculation_units] == self.imperial_value:
+        elif uc.units_lookup[calculation_units] == uc.imperial_value:
             conductor_projection = diameter / 12
 
         d = {'high resistance Ω/unit': [df['high resistance Ω/unit'].values[0]],  # high resistance
@@ -599,21 +481,20 @@ class IEEE738:
                          df.at[_idx, 'St Weight'] / 1000,
                          df.at[_idx, 'Alw Weight'] / 1000)
 
-        tau = 15
-        time = tau * 60
+        duration = df.at[_idx, 'duration (minutes)']
 
         load_dump_day, load_dump_night = self.load_dump(calculation_units, diameter, conductor_temp_normal,
-                                                            conductor_temp_emergency,
-                                                            ambient_air_temp, elevation, wind_angle,
-                                                            conductor_wind_emergency, emissivity, solar_absorptivity,
-                                                            atmosphere, latitude, day, month, year, hour,
-                                                            conductor_direction, conductor_projection,
-                                                            conductor_resistance, mcp)
+                                                        conductor_temp_emergency,
+                                                        ambient_air_temp, elevation, wind_angle,
+                                                        conductor_wind_emergency, emissivity, solar_absorptivity,
+                                                        atmosphere, latitude, day, month, year, hour,
+                                                        conductor_direction, conductor_projection,
+                                                        conductor_resistance, mcp, duration)
 
         if df is not None:
             df.at[_idx, 'load dump rating daytime'] = load_dump_day
             df.at[_idx, 'load dump rating nighttime'] = load_dump_night
-            df.at[_idx, 'load dump time'] = tau
+            df.at[_idx, 'load dump duration'] = duration
 
         return load_dump_day, load_dump_night
 
@@ -625,16 +506,19 @@ class IEEE738:
         ambient_temp_inc = df_adjusted.at[0, 'temperature increment']
         conductor_normal_rating = df_adjusted.at[0, 'normal temperature rating']
         conductor_emergency_rating = df_adjusted.at[0, 'emergency temperature rating']
-        # conductor_temp_steps = 6
         # TODO adjust conductor ranges to include steps above and below maximums
         # TODO adjust ambient ranges to include steps above and below maximums
 
         if conductor_normal_rating == conductor_emergency_rating:
             temp_range_conductor = np.arange(conductor_normal_rating - self.conductor_temp_steps * ambient_temp_inc,
-                                             conductor_normal_rating + (1 + self.conductor_temp_steps) * ambient_temp_inc, ambient_temp_inc)
+                                             conductor_normal_rating + (
+                                                     1 + self.conductor_temp_steps) * ambient_temp_inc,
+                                             ambient_temp_inc)
         else:
             temp_range_conductor = np.arange(conductor_normal_rating - self.conductor_temp_steps * ambient_temp_inc,
-                                             conductor_emergency_rating + (1 + self.conductor_temp_steps) * ambient_temp_inc, ambient_temp_inc)
+                                             conductor_emergency_rating + (
+                                                     1 + self.conductor_temp_steps) * ambient_temp_inc,
+                                             ambient_temp_inc)
 
         temp_range_ambient = np.arange(ambient_lower_range, ambient_upper_range + ambient_temp_inc, ambient_temp_inc)
 
@@ -679,15 +563,11 @@ class IEEE738:
         #  ex HD Copper 500 @ Tc = 55C & Amb = 40C I = nan
         #  mention this or highlight cell somehow
 
-        # remove first row (configuration setup) --> likely a better way to make this work
-        df_N = df_N.drop(labels=0, axis='index').reset_index(drop=True)
+        # remove first row (configuration setup)
+        # TODO --> likely a better way to make this work
+        df_N = df_N.drop(labels=0, axis='index').reset_index(drop=False)
         df_E = df_E.drop(labels=0, axis='index').reset_index(drop=True)
         df_L = df_L.drop(labels=0, axis='index').reset_index(drop=True)
-
-        # remove nan and replace with 0
-        df_N = df_N.replace(np.nan, 0)
-        df_E = df_E.replace(np.nan, 0)
-        df_L = df_L.replace(np.nan, 0)
 
         return df_N, df_E, df_L
 
@@ -712,7 +592,6 @@ class IEEE738:
             ws.append(r)
 
         wb.save(filename_)
-
 
     @staticmethod
     def current_steady_state(qr, qs, qc, r):
@@ -743,9 +622,9 @@ class IEEE738:
         uf = None
         t_film = (conductor_temp + ambient_air_temp) / 2
 
-        if self.units_lookup[calculation_units] == self.metric_value:
+        if uc.units_lookup[calculation_units] == uc.metric_value:
             uf = (1.458 * 10 ** -6 * (t_film + 273.15) ** 1.5) / (t_film + 383.4)
-        elif self.units_lookup[calculation_units] == self.imperial_value:
+        elif uc.units_lookup[calculation_units] == uc.imperial_value:
             uf = (0.00353 * (t_film + 273.15) ** 1.5) / (t_film + 383.4)
         if df is not None:
             df.at[_idx, 'uf'] = uf
@@ -764,9 +643,9 @@ class IEEE738:
         kf = None
         t_film = (conductor_temp + ambient_air_temp) / 2
 
-        if self.units_lookup[calculation_units] == self.metric_value:
+        if uc.units_lookup[calculation_units] == uc.metric_value:
             kf = 2.424 * 10 ** -2 + 7.477 * 10 ** -5 * t_film - 4.407 * 10 ** -9 * t_film ** 2
-        elif self.units_lookup[calculation_units] == self.imperial_value:
+        elif uc.units_lookup[calculation_units] == uc.imperial_value:
             kf = 0.007388 + 2.279 * 10 ** -5 * t_film - 1.343 * 10 ** -9 * t_film ** 2
         if df is not None:
             df.at[_idx, 'kf'] = kf
@@ -785,10 +664,10 @@ class IEEE738:
         """
         pf = None
         t_film = (conductor_temp + ambient_air_temp) / 2
-        if self.units_lookup[calculation_units] == self.metric_value:
+        if uc.units_lookup[calculation_units] == uc.metric_value:
             pf = (1.293 - 1.525 * 10 ** -4 * elevation + 6.379 * 10 ** -9 * elevation ** 2) / (
                     1 + 0.00367 * t_film)
-        elif self.units_lookup[calculation_units] == self.imperial_value:
+        elif uc.units_lookup[calculation_units] == uc.imperial_value:
             pf = (0.080695 - (2.901 * 10 ** -6) * elevation + (3.7 * 10 ** -11) * (elevation ** 2)) / (
                     1 + 0.00367 * t_film)
         if df is not None:
@@ -842,7 +721,7 @@ class IEEE738:
         :return: Total solar and sky radiated heat flux rate (W/m^2)
         """
 
-        if self.units_lookup[calculation_units] == self.metric_value:
+        if uc.units_lookup[calculation_units] == uc.metric_value:
             if atmosphere == 'clear':
                 # Clear atmosphere
                 aa = -42.2391
@@ -861,7 +740,7 @@ class IEEE738:
                 ee = 5.4654E-4
                 ff = -4.3446E-6
                 gg = 1.3236E-8
-        elif self.units_lookup[calculation_units] == self.imperial_value:
+        elif uc.units_lookup[calculation_units] == uc.imperial_value:
             if atmosphere == 'clear':
                 # Clear atmosphere
                 aa = -3.9241
@@ -955,7 +834,7 @@ class IEEE738:
         cks = -1.000E-9
         solar_heat_factor = None
 
-        if self.units_lookup[calculation_units] == self.metric_value:
+        if uc.units_lookup[calculation_units] == uc.metric_value:
             # meters
             if elevation < 1000:
                 solar_heat_factor = 1.0
@@ -965,7 +844,7 @@ class IEEE738:
                 solar_heat_factor = 1.19
             elif 4000 <= elevation:
                 solar_heat_factor = 1.28
-        elif self.units_lookup[calculation_units] == self.imperial_value:
+        elif uc.units_lookup[calculation_units] == uc.imperial_value:
             # feet
             if elevation < 5000:
                 solar_heat_factor = 1.0
@@ -1203,11 +1082,11 @@ class IEEE738:
         :return: Radiated heat loss rate per unit length (W/m or W/ft)
         """
         qr = None
-        if self.units_lookup[calculation_units] == self.metric_value:
+        if uc.units_lookup[calculation_units] == uc.metric_value:
             # W/meters
             qr = 0.0178 * diameter * emissivity * (
                     ((conductor_temp + 273.15) / 100) ** 4 - ((ambient_air_temp + 273.15) / 100) ** 4)
-        elif self.units_lookup[calculation_units] == self.imperial_value:
+        elif uc.units_lookup[calculation_units] == uc.imperial_value:
             # W/feet
             qr = 0.138 * diameter * emissivity * (
                     ((conductor_temp + 273.15) / 100) ** 4 - ((ambient_air_temp + 273.15) / 100) ** 4)
@@ -1240,7 +1119,7 @@ class IEEE738:
         kf = self.c_kf(calculation_units, conductor_temp, ambient_air_temp, df, _idx)
         pf = self.c_pf(calculation_units, conductor_temp, ambient_air_temp, elevation, df, _idx)
 
-        if self.units_lookup[calculation_units] == self.metric_value:
+        if uc.units_lookup[calculation_units] == uc.metric_value:
             # W/meter
             # natural convection
             qc0 = 0.0205 * pf ** 0.5 * diameter ** 0.75 * (conductor_temp - ambient_air_temp) ** 1.25
@@ -1253,7 +1132,7 @@ class IEEE738:
             qc2 = (0.0119 * ((diameter * pf * wind_speed) / uf) ** 0.6) * kf * k_angle * (
                     conductor_temp - ambient_air_temp)
             qc_heat_loss = np.amax((qc0, qc1, qc2))
-        elif self.units_lookup[calculation_units] == self.imperial_value:
+        elif uc.units_lookup[calculation_units] == uc.imperial_value:
             # W/feet
 
             # natural convection
@@ -1373,11 +1252,6 @@ class IEEE738:
         delta = np.abs(delta)
         return delta
 
-    def final_temp(self, initial_temperature, mcp, conductor_resistance, final_current, initial_current, tau):
-        r = self.c_cond_resistance(initial_temperature, conductor_resistance)
-        results = (60 * tau * r * (final_current ** 2 - initial_current ** 2)) / mcp + initial_temperature
-        return results
-
     def c_findTemp(self, initial_temperature, final_temperature, time_, calc_tau):
         results = initial_temperature + (final_temperature - initial_temperature) * (1 - np.exp(-time_ / calc_tau))
         return results
@@ -1385,7 +1259,7 @@ class IEEE738:
     def find_conductor_temp(self, t_c, calculation_units, diameter, ambient_air_temp, elevation, wind_angle,
                             conductor_wind_emergency, emissivity, solar_absorptivity, atmosphere, latitude, day, month,
                             year, hour, conductor_direction, conductor_projection, conductor_resistance,
-                            initial_temperature, initial_current, conductor_temp_emergency, mcp, condition):
+                            initial_temperature, initial_current, conductor_temp_emergency, mcp, condition, duration):
 
         if condition == 'Day':
             final_, _ = self.c_SSRating(calculation_units, diameter, t_c, ambient_air_temp,
@@ -1406,14 +1280,15 @@ class IEEE738:
             r = self.c_cond_resistance(initial_temperature, conductor_resistance)
 
         calc_tau = (mcp * (t_c - initial_temperature)) / (r * (final_ ** 2 - initial_current ** 2)) * 1 / 60
-        tc = (initial_temperature + (t_c - initial_temperature) * (1 - np.exp(-15 / calc_tau)))
+
+        tc = (initial_temperature + (t_c - initial_temperature) * (1 - np.exp(-duration / calc_tau)))
         delta = np.abs(conductor_temp_emergency - tc)
         return delta
 
     def load_dump(self, calculation_units, diameter, conductor_temp_normal, conductor_temp_emergency,
-                      ambient_air_temp, elevation, wind_angle, wind_speed, emissivity, solar_absorptivity,
-                      atmosphere, latitude, day_, month_, year_, hour_, conductor_direction, conductor_projection,
-                      conductor_resistance, mcp):
+                  ambient_air_temp, elevation, wind_angle, wind_speed, emissivity, solar_absorptivity,
+                  atmosphere, latitude, day_, month_, year_, hour_, conductor_direction, conductor_projection,
+                  conductor_resistance, mcp, duration):
 
         initial_current_day, initial_current_night = \
             self.c_SSRating(calculation_units, diameter, conductor_temp_normal,
@@ -1421,7 +1296,7 @@ class IEEE738:
                             latitude, day_, month_, year_, hour_, conductor_direction, conductor_projection,
                             conductor_resistance)
 
-        initial_temperature_day, initial_temperature_night =\
+        initial_temperature_day, initial_temperature_night = \
             self.c_initial_temp(calculation_units, diameter, conductor_temp_normal, conductor_temp_emergency,
                                 ambient_air_temp, elevation, wind_angle, wind_speed, emissivity, solar_absorptivity,
                                 atmosphere, latitude, day_, month_, year_, hour_, conductor_direction,
@@ -1434,7 +1309,7 @@ class IEEE738:
                                                   wind_speed, emissivity, solar_absorptivity, atmosphere, latitude,
                                                   day_, month_, year_, hour_, conductor_direction, conductor_projection,
                                                   conductor_resistance, initial_temperature_day, initial_current_day,
-                                                  conductor_temp_emergency, mcp, 'Day'))
+                                                  conductor_temp_emergency, mcp, 'Day', duration))
         result_night = optimize.minimize_scalar(self.find_conductor_temp, bounds=(ambient_air_temp, 600),
                                                 method='bounded',
                                                 args=(
@@ -1443,7 +1318,7 @@ class IEEE738:
                                                     latitude, day_, month_, year_, hour_, conductor_direction,
                                                     conductor_projection, conductor_resistance,
                                                     initial_temperature_night, initial_current_night,
-                                                    conductor_temp_emergency, mcp, 'Night'))
+                                                    conductor_temp_emergency, mcp, 'Night', duration))
 
         final_temperature_day = result_day.x
         final_temperature_night = result_night.x
