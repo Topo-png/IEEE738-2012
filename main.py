@@ -41,7 +41,7 @@ from openpyxl.utils.dataframe import dataframe_to_rows
 uc = Unc.UnitConvert()
 
 ver = 'v0.2.5'
-demo = True  # disable to allow selection of config/conductors
+demo = False  # disable to allow selection of config/conductors
 
 dir_config = 'Sample/config-sample.xlsx'  # location of configuration file
 dir_conductor = 'Sample/Conductor_Prop-Sample.xlsx'  # location of conductor file
@@ -138,10 +138,11 @@ class IEEE738:
             print('Select Configuration')
             for _pos, _text in enumerate(_df):
                 print(f"{_pos + 1}: {_text}")
-                if demo:
-                    _response = 1
-                else:
-                    _response = int(input("Selection? "))
+
+            if demo:
+                _response = 1
+            else:
+                _response = int(input("Selection? "))
             print(f'{_df_dict[_response - 1]}')
             config = df_config[df_config['config name'] == _df[_response - 1]].reset_index(drop=True)
         except KeyError:
@@ -172,10 +173,10 @@ class IEEE738:
         _df = _df['Conductor Spec'].values
         for _pos, _text in enumerate(_df):
             print(f"{_pos + 1}: {_text}")
-            if demo:
-                _response = 2
-            else:
-                _response = int(input("Selection? "))
+        if demo:
+            _response = 2
+        else:
+            _response = int(input("Selection? "))
         _conductor_spec = _df[_response - 1]
         print(_conductor_spec)
 
