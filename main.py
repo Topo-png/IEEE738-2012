@@ -40,21 +40,19 @@ from openpyxl.utils.dataframe import dataframe_to_rows
 
 uc = Unc.UnitConvert()
 
-ver = 'v0.2.5'
-demo = False  # disable to allow selection of config/conductors
+ver = 'v0.2.51'
+demo = True  # disable to allow selection of config/conductors
 
 dir_config = 'Sample/config-sample.xlsx'  # location of configuration file
 dir_conductor = 'Sample/Conductor_Prop-Sample.xlsx'  # location of conductor file
 
 degree_sign = u'\N{DEGREE SIGN}'
 
-
 class IEEE738:
 
     def __init__(self):
         self.true_to_standard = False
-        self.true_to_spreadsheet = False  # TODO implement this feature. spreadsheet calculates resistances slightly
-        # different compared to the standard
+        self.true_to_spreadsheet = False  # TODO implement this feature. spreadsheet calculates resistances slightly different compared to the standard
         self.conductor_temp_steps = 6
 
     def runTest(self):
@@ -82,12 +80,17 @@ class IEEE738:
                                     values='load dump rating daytime')
         df_load_night = df_load.pivot(index='conductor temperature', columns='ambient air temperature',
                                       values='load dump rating nighttime')
-
+        print('Daytime normal rating')
         print(df_normal_day)
+        print('Nighttime normal rating')
         print(df_normal_night)
+        print('Daytime emergency rating')
         print(df_emergency_day)
+        print('Nighttime emergency rating')
         print(df_emergency_night)
+        print('Daytime load dump rating')
         print(df_load_day)
+        print('Nighttime load dump rating')
         print(df_load_night)
         self.export_excel(df_normal, df_emergency, df_load, df_config, 'export_test')
         t1 = time.time()
@@ -97,18 +100,30 @@ class IEEE738:
 
     @staticmethod
     def import_config(dir_):
-        # Imports list of configurations from database
-        # Returns list of configurations
+        """
+        Imports configuration excel file
+        :param dir_: path to file
+        :return: Configurations and parameters listed in file (pandas dataframe)
+        """
+        # todo add in csv capability/test current with csv
         config_list = pd.read_excel(io=dir_, sheet_name='config', engine='openpyxl')
         return config_list
 
     @staticmethod
     def import_conductor(dir_):
-        # Imports list of conductors from database
-        # Returns list of conductors and list of conductor specs with Normal/Emergency temperature ratings
+        """
+        Imports list of conductors & corresponding parameters and conductor specifications (max temp) from excel file
+        and sorts data smallest to largest and A-Z to be used later on
+        :param dir_: path to file
+        :return: Conductors and parameters listed in file (pandas dataframe)
+        """
+        # read in list of conductors and corresponding parameters
         conductor_list = pd.read_excel(io=dir_, sheet_name='conductors', engine='openpyxl')
+        # read temperature ranges for the different conductor specifications (ACCC/ASCR/etc...)
         conductor_spec = pd.read_excel(io=dir_, sheet_name='conductor spec', engine='openpyxl')
+        # sort conductor dataframe based on conductor outer diameter
         conductor_list.sort_values('Metal OD', ascending=True, inplace=True)
+        # sort conductor spec A-Z
         conductor_spec.sort_values('Conductor Spec', ascending=True, inplace=True)
         return conductor_list, conductor_spec
 
